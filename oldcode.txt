@@ -1,0 +1,107 @@
+import uuid
+from flask import Flask, request
+from flask_smorest import abort
+
+from db import students, reports
+
+app = Flask(__name__)
+
+
+@app.get("/report/<string:report_id>")
+def get_report(report_id):
+    try:
+        return reports[report_id]
+    except KeyError:
+        abort(404, message="Report not found")
+
+
+@app.post("/report")  #ok
+def create_report():
+    report_data = request.get_json()
+
+    if(
+        "title" not in report_data
+        or "type" not in report_data
+    ):
+        abort(400, message="Missing required fields: title and type")
+
+    for report in reports.values():
+        if (report["title"] == report_data["title"]
+        and report["type"] == report_data["type"]
+        and report["student_id"] == report_data["student_id"]):
+            abort(400, message="Report with the same title already exists")
+
+    report_id = uuid.uuid4().hex
+    report = {**report_data, "id": report_id}
+    reports[report_id] = report
+
+    return report
+
+
+@app.delete("/report/<string:report_id>")
+def delete_report(report_id):
+    try:
+        del reports[report_id]
+        return {"message": "Report deleted successfully"}
+    except KeyError:
+        abort(404, message="Report not found")
+
+
+@app.put("/report/<string:report_id>")
+def update_report(report_id):
+        report_data = request.get_json()
+        if "title" not in report_data or "type" not in report_data:
+            abort(400, message="Missing required fields: title and type in the JSON payload")
+
+        try:
+            report = reports[report_id]
+            report |= report_data
+            return report
+        except KeyError:
+            abort(404, message="Report not found")      
+
+
+
+@app.get("/report")     #ok
+def get_all_reports():
+    return{"reports": list(reports.values())}
+
+
+#=================================================
+#=================================================
+
+@app.get("/student/<string:student_id>") #ok #return a specific student by ID
+def get_student(student_id):
+    try:
+        return students[student_id]
+    except KeyError:
+        abort(404, message="Student not found")
+
+
+@app.post("/student") #add a new student to your list
+def add_student():
+    student_data = request.get_json()
+
+    if(
+            "fname" not in student_data
+            or "lname" not in student_data
+        ):
+            abort(400, message="Missing required fields: fname and lname")
+
+    for student in students.values():
+        if (student["fname"] == student_data["fname"]
+        and student["lname"] == student_data["lname"]):
+            abort(400, message="Student with the same name already exists")
+
+
+
+    student_id = uuid.uuid4().hex
+    student = {**student_data, "id": student_id}
+    students[student_id] = student
+    return student, 201
+
+
+
+@app.get("/student") #return all students inside your list
+def get_students():
+    return {"students": students}
